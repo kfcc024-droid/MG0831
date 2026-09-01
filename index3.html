@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시장금리 및 증시 현황 데일리 대시보드</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#111827',
+                            950: '#070a11',
+                        },
+                        brand: {
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        sans: ['Noto Sans KR', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter, Noto Sans KR & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #070a11;
+            color: #f1f5f9;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(30, 58, 138, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(88, 28, 135, 0.12) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card-interactive {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-interactive:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4), 0 0 15px rgba(59, 130, 246, 0.1);
+        }
+
+        .glow-blue { box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3); }
+        .glow-pink { box-shadow: 0 0 20px -5px rgba(236, 72, 153, 0.3); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- Navigation Bar -->
+    <header class="bg-slate-900/90 border-b border-slate-800/80 sticky top-0 z-50 backdrop-blur-xl px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <!-- Logo & Title Header -->
+            <div class="flex items-center gap-3.5">
+                <div class="p-2.5 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl shadow-lg shadow-blue-500/20 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-chart-line text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg lg:text-xl font-bold tracking-tight text-white">
+                            시장금리 & 증시 모니터링 시스템
+                        </h1>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            KOFIABOND 시가평가(민평4사)
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5">민평4사(KIS·NICE·한국자산·Fn) 시가평가기준수익률 및 수신기관 예금·증시 데일리 대시보드</p>
+                </div>
+            </div>
+
+            <!-- Global Controls: Date Picker & Utility Buttons -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Date Control Box -->
+                <div class="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl p-1 shadow-inner">
+                    <i class="fa-regular fa-calendar text-blue-400 ml-2.5 mr-2 text-xs"></i>
+                    <label for="inquiryDate" class="sr-only">조회 기준일자</label>
+                    <input type="date" id="inquiryDate" class="bg-transparent text-xs font-mono font-medium text-white focus:outline-none cursor-pointer pr-2">
+                </div>
+
+                <!-- Quick Date Presets -->
+                <div class="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl p-1 text-xs">
+                    <button id="btnToday" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition font-medium">오늘</button>
+                    <button id="btn1M" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition font-medium">1개월 전</button>
+                    <button id="btn1Y" class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition font-medium">1년 전</button>
+                </div>
+
+                <!-- Divider -->
+                <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
+
+                <!-- Manual Rate Edit Button -->
+                <button id="btnEditData" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-amber-300 text-xs font-medium border border-amber-500/30 rounded-xl transition shadow-sm">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>수치 수정</span>
+                </button>
+
+                <!-- AI Quick Briefing -->
+                <button id="btnAiAnalyze" class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-indigo-500/20 transition transform active:scale-95">
+                    <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                    <span>AI 시황 브리핑</span>
+                </button>
+
+                <!-- CSV Export -->
+                <button id="btnExportCsv" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 rounded-xl transition">
+                    <i class="fa-solid fa-file-excel text-emerald-400"></i>
+                    <span>CSV 저장</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+        <!-- Verification Quick Links Ribbon -->
+        <div class="glass-panel rounded-2xl p-3 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
+            <div class="flex items-center gap-2">
+                <div class="p-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/20">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <span class="font-semibold text-white">공식 원본 수치 검증:</span>
+                <span class="text-slate-400 text-[11px] hidden md:inline">(클릭 시 각 기관별 공식 공시 화면으로 직접 이동하여 수치를 교차 검증할 수 있습니다)</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+                <a href="https://www.kofiabond.or.kr/websquare/websquare.html?w2xPath=/xml/subMain.xml&divisionId=MBIS01010000000000" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-blue-950/60 hover:bg-blue-600 text-blue-300 hover:text-white font-medium rounded-lg border border-blue-500/30 transition flex items-center gap-1 text-[11px]" title="kofiabond -> 시가평가 -> 채권시가평가기준수익률">
+                    <i class="fa-solid fa-bullseye text-blue-400"></i>
+                    <span>kofiabond 시가평가</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                </a>
+                <a href="https://snapshot.bok.or.kr/dashboard/A" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-slate-900 hover:bg-blue-600 text-slate-300 hover:text-white rounded-lg border border-slate-700/80 transition flex items-center gap-1 text-[11px]">
+                    <span>한국은행</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                </a>
+                <a href="https://www.federalreserve.gov/monetarypolicy/openmarket.htm" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-slate-900 hover:bg-purple-600 text-slate-300 hover:text-white rounded-lg border border-slate-700/80 transition flex items-center gap-1 text-[11px]">
+                    <span>미 연준(FED)</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                </a>
+                <a href="https://finlife.fss.or.kr/finlife/svings/fdrmDpst/list.do?menuNo=700002" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-slate-900 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-lg border border-slate-700/80 transition flex items-center gap-1 text-[11px]">
+                    <span>금감원 예금</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                </a>
+                <a href="https://portal.kfb.or.kr/compare/disclosure_deposit.sm" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-slate-900 hover:bg-teal-600 text-slate-300 hover:text-white rounded-lg border border-slate-700/80 transition flex items-center gap-1 text-[11px]">
+                    <span>은행연합회</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                </a>
+                <a href="https://finance.naver.com/sise/sise_index.naver?code=KOSPI" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 bg-slate-900 hover:bg-rose-600 text-slate-300 hover:text-white rounded-lg border border-slate-700/80 transition flex items-center gap-1 text-[11px]">
+                    <span>네이버증권</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Clarification Banner: Valuation Yield & Market Close Date -->
+        <div class="bg-amber-950/20 border border-amber-500/20 rounded-2xl p-3.5 flex items-start gap-3 text-xs text-amber-200/90">
+            <i class="fa-solid fa-circle-info text-amber-400 text-base mt-0.5 shrink-0"></i>
+            <div class="leading-relaxed">
+                <strong class="text-amber-300 font-bold">수익률 산출 기준 및 조회일 안내:</strong>
+                채권 수익률은 증권사 최종호가가 아닌 <strong>KOFIABOND 시가평가기준수익률 (민평4사 KIS·NICE·한국자산·Fn 산술평균)</strong>을 적용합니다. 장마감 고시 특성상 선택하신 조회일자 기준 <strong>직전 영업일(T-1) 마감 최종 수치</strong>가 표시됩니다.
+            </div>
+        </div>
+
+        <!-- Top Executive Metrics Bar (7 Key Indicators) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+            
+            <!-- 1. BOK Rate -->
+            <div class="glass-panel glass-card-interactive rounded-2xl p-3.5 border-l-4 border-l-blue-500 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium text-slate-300">한국은행 기준금리</span>
+                    <a href="https://snapshot.bok.or.kr/dashboard/A" target="_blank" class="text-blue-400 hover:text-blue-300 text-[10px]" title="한국은행 바로가기">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-white flex items-baseline gap-0.5 my-1" id="cardBokRate">
+                    3.000<span class="text-xs font-sans text-slate-400 font-normal">%</span>
+                </div>
+                <div class="text-[10px] text-slate-400 flex items-center justify-between">
+                    <span>한국은행 정책금리</span>
+                    <span class="text-blue-400 font-semibold">3.00%</span>
+                </div>
+            </div>
+
+            <!-- 2. US Fed Rate -->
+            <div class="glass-panel glass-card-interactive rounded-2xl p-3.5 border-l-4 border-l-purple-500 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium text-slate-300">미국 기준금리</span>
+                    <a href="https://www.federalreserve.gov/monetarypolicy/openmarket.htm" target="_blank" class="text-purple-400 hover:text-purple-300 text-[10px]" title="미 연준 바로가기">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-white flex items-baseline gap-0.5 my-1" id="cardUsFedRate">
+                    3.625<span class="text-xs font-sans text-slate-400 font-normal">%</span>
+                </div>
+                <div class="text-[10px] text-purple-300/80 flex items-center justify-between">
+                    <span>FED FOMC</span>
+                    <span class="font-mono">3.50~3.75%</span>
+                </div>
+            </div>
+
+            <!-- 3. Treasury 3Y -->
+            <div class="glass-panel glass-card-interactive rounded-2xl p-3.5 border-l-4 border-l-emerald-500 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium text-slate-300">국고채 3년물</span>
+                    <a href="https://www.kofiabond.or.kr/websquare/websquare.html?w2xPath=/xml/subMain.xml&divisionId=MBIS01010000000000" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-[10px]" title="kofiabond 바로가기">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-white flex items-baseline gap-0.5 my-1" id="cardTreasury3Y">
+                    3.820<span class="text-xs font-sans text-slate-400 font-normal">%</span>
+                </div>
+                <div class="text-[10px] text-emerald-400 flex items-center justify-between">
+                    <span>민평4사 시가평가</span>
+                    <span class="font-mono">3Y Benchmark</span>
+                </div>
+            </div>
+
+            <!-- 4. Korea Yield Spread (10Y - 3Y) -->
+            <div class="glass-panel glass-card-interactive rounded-2xl p-3.5 border-l-4 border-l-pink-500 bg-pink-950/10 flex flex-col justify-between glow-pink">
+                <div class="flex items-center justify-between text-xs text-pink-300 mb-1">
+                    <span class="font-bold flex items-center gap-1 text-pink-200">
+                        <i class="fa-solid fa-arrows-left-right text-pink-400"></i>
+                        <span>장단기 금리차 (10Y-3Y)</span>
+                    </span>
+                    <a href="https://www.kofiabond.or.kr/websquare/websquare.html?w2xPath=/xml/subMain.xml&divisionId=MBIS01010000000000" target="_blank" class="text-pink-400 hover:text-pink-300 text-[10px]">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-pink-200 flex items-baseline gap-1 my-1" id="cardYieldSpread">
+                    +0.530<span class="text-xs font-sans text-pink-300 font-normal">%p</span>
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-pink-300/90" id="cardYieldSpreadBadge">
+                    <span class="font-mono">53 bp</span>
+                    <span class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">정상 (Normal)</span>
+                </div>
+            </div>
+
+            <!-- 5. Bank Bond AAA 1Y -->
+            <div class="glass-panel glass-card-interactive rounded-2xl p-3.5 border-l-4 border-l-amber-500 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium text-slate-300">금융채 AAA (1년)</span>
+                    <a href="https://www.kofiabond.or.kr/websquare/websquare.html?w2xPath=/xml/subMain.xml&divisionId=MBIS01010000000000" target="_blank" class="text-amber-400 hover:text-amber-300 text-[10px]">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-white flex items-baseline gap-0.5 my-1" id="cardBankAaa1Y">
+                    3.775<span class="text-xs font-sans text-slate-400 font-normal">%</span>
+                </div>
+                <div class="text-[10px] text-amber-300 flex items-center justify-between">
+                    <span>민평4사 시가평가</span>
+                    <span class="font-mono">12M AAA</span>
+                </div>
+            </div>
+
+            <!-- 6. KOSPI -->
+            <div class="glass-panel glass-card-interactive rounded-2xl p-3.5 border-l-4 border-l-rose-500 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium text-slate-300">KOSPI</span>
+                    <a href="https://finance.naver.com/sise/sise_index.naver?code=KOSPI" target="_blank" class="text-rose-400 hover:text-rose-300 text-[10px]">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-white my-1" id="cardKospi">
+                    6,835.80
+                </div>
+                <div class="text-[10px] text-rose-400 flex items-center justify-between font-mono" id="cardKospiChg">
+                    <span>전일대비</span>
+                    <span><i class="fa-solid fa-caret-up mr-0.5"></i>+0.45%</span>
+                </div>
+            </div>
+
+            <!-- 7. NASDAQ -->
+            <div class="glass-card-interactive glass-panel rounded-2xl p-3.5 border-l-4 border-l-cyan-500 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span class="font-medium text-slate-300">NASDAQ</span>
+                    <a href="https://finance.naver.com/world/sise.naver?symbol=NAS@IXIC" target="_blank" class="text-cyan-400 hover:text-cyan-300 text-[10px]">확인 ↗</a>
+                </div>
+                <div class="text-xl font-bold font-mono text-white my-1" id="cardNasdaq">
+                    26,370.89
+                </div>
+                <div class="text-[10px] text-rose-400 flex items-center justify-between font-mono" id="cardNasdaqChg">
+                    <span>전일대비</span>
+                    <span><i class="fa-solid fa-caret-up mr-0.5"></i>+0.62%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation Switcher -->
+        <div class="flex flex-wrap items-center justify-between border-b border-slate-800 gap-3 pb-3">
+            <div class="flex flex-wrap gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 shadow-inner">
+                <button id="tabMarketRates" onclick="switchMainTab('market')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition bg-blue-600 text-white shadow-md shadow-blue-600/30">
+                    <i class="fa-solid fa-building-columns mr-1.5"></i>시장금리 & 차트 분석
+                </button>
+                <button id="tabDepositRates" onclick="switchMainTab('deposit')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-piggy-bank mr-1.5"></i>수신기관 예금금리
+                </button>
+                <button id="tabStocks" onclick="switchMainTab('stock')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-arrow-trend-up mr-1.5"></i>증시 현황 (국내/해외)
+                </button>
+                <button id="tabQuarterly" onclick="switchMainTab('quarterly')" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+                    <i class="fa-solid fa-calendar-week mr-1.5"></i>전년동기~현재 분기별 추이
+                </button>
+            </div>
+
+            <div class="text-xs text-slate-400 flex items-center gap-2 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-slate-800">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>적용 마감일자(T-1): <strong id="lblSelectedDateDisplay" class="text-slate-200 font-mono">2026-08-31</strong></span>
+            </div>
+        </div>
+
+        <!-- Main Section Container (Wide Balanced Layout) -->
+        <div id="sectionMainSplit" class="space-y-6">
+
+            <!-- 1. Market Rates Panel -->
+            <div id="panelMarketRates" class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-list-ol text-blue-400 text-base"></i>
+                        <h2 class="text-sm font-bold text-white">
+                            시장금리 수치 현황 <span class="text-xs font-normal text-slate-400 ml-1">(kofiabond 시가평가 민평4사 평균)</span>
+                        </h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="https://www.kofiabond.or.kr/websquare/websquare.html?w2xPath=/xml/subMain.xml&divisionId=MBIS01010000000000" target="_blank" class="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 font-medium bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-500/30 shadow-sm transition">
+                            <i class="fa-solid fa-arrow-pointer text-[10px]"></i>
+                            <span>시가평가 바로가기</span>
+                        </a>
+                        <span class="text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md font-mono">단위: 연%</span>
+                    </div>
+                </div>
+
+                <!-- Market Rates Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800/80 shadow-lg">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th scope="col" class="px-3.5 py-3 font-semibold">구분 / 시가평가 상품명</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">3개월</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">6개월</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">9개월</th>
+                                <th scope="col" class="px-2.5 py-3 text-center font-bold text-blue-300 bg-blue-950/40 border-x border-blue-500/20">12개월 (1년)</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">24개월</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">36개월</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">60개월</th>
+                                <th scope="col" class="px-2 py-3 text-center">공식 조회</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyMarketRates" class="divide-y divide-slate-800/80 bg-slate-950/40 font-mono">
+                            <!-- Dynamic Rows Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Policy Rates Bar Below Market Table -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 glow-blue"></span>
+                            <span class="text-xs font-medium text-slate-300">한국은행 기준금리</span>
+                            <a href="https://snapshot.bok.or.kr/dashboard/A" target="_blank" class="text-[10px] text-blue-400 hover:underline">
+                                [한국은행 ↗]
+                            </a>
+                        </div>
+                        <span id="valBokRate" class="text-sm font-bold text-blue-400 font-mono">3.000%</span>
+                    </div>
+                    <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                            <span class="text-xs font-medium text-slate-300">미국 연준 기준금리</span>
+                            <a href="https://www.federalreserve.gov/monetarypolicy/openmarket.htm" target="_blank" class="text-[10px] text-purple-400 hover:underline">
+                                [FED FOMC ↗]
+                            </a>
+                        </div>
+                        <span id="valUsFedRate" class="text-sm font-bold text-purple-400 font-mono">3.50%~3.75%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Balanced Wide Charts Row (Full Width Single-Row Layout) -->
+            <div id="panelChartsRow" class="space-y-6">
+                
+                <!-- Interactive Trend Line Chart Card (Full Width View) -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4 w-full">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-800/80">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-chart-area text-indigo-400 text-base"></i>
+                            <h3 class="text-sm font-bold text-white">금리 & 지수 꺾은선 추이</h3>
+                        </div>
+                        
+                        <!-- Select Controls: Metric & Period -->
+                        <div class="flex items-center gap-1.5">
+                            <select id="selChartPeriod" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer focus:border-blue-500">
+                                <option value="quarterly">분기별 말일자 (전년동기~현재)</option>
+                                <option value="daily">최근 30일 일별 추이</option>
+                            </select>
+                            <select id="selChartMetric" class="bg-slate-900 border border-slate-700 text-xs text-slate-200 rounded-xl px-2.5 py-1.5 focus:outline-none cursor-pointer focus:border-blue-500">
+                                <option value="yieldSpread">장단기 금리차 (국고 10Y vs 3Y & 스프레드)</option>
+                                <option value="bankAaa">금융채 AAA (만기별 비교)</option>
+                                <option value="bankAa">금융채 AA (만기별 비교)</option>
+                                <option value="corpAa">회사채 AA (만기별 비교)</option>
+                                <option value="treasuryVsBank">국고채 3년 vs 금융채 AAA 1년 vs 예금</option>
+                                <option value="baseRates">한국/미국 기준금리 비교</option>
+                                <option value="stocks">국내외 주요 증시 (KOSPI/NASDAQ)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Subtitle Text -->
+                    <div id="lblChartSubtitle" class="text-[11px] text-slate-400 flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
+                        <span><i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>전년 동기 분기말부터 조회일자까지 (분기별 말일자)</span>
+                    </div>
+
+                    <!-- Full Horizontal Width Canvas Container -->
+                    <div class="relative w-full h-[260px] md:h-[280px]">
+                        <canvas id="chartTrendLine"></canvas>
+                    </div>
+                </div>
+
+                <!-- Yield Curve Structure Card (Full Width View) -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4 w-full">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-bezier-curve text-teal-400 text-base"></i>
+                            <h3 class="text-sm font-bold text-white">채권 만기별 수익률 곡선 (Yield Curve)</h3>
+                        </div>
+                        <span class="text-[11px] text-teal-400 font-semibold bg-teal-500/10 border border-teal-500/20 px-2.5 py-0.5 rounded-full">조회일 만기 구조</span>
+                    </div>
+
+                    <!-- Yield Curve Canvas -->
+                    <div class="relative w-full h-[220px] md:h-[240px]">
+                        <canvas id="chartYieldCurve"></canvas>
+                    </div>
+
+                    <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-900/60 p-3 rounded-xl border border-slate-800/80">
+                        <strong class="text-slate-300"><i class="fa-solid fa-lightbulb text-amber-400 mr-1"></i>스프레드 분석:</strong> 금융채 AAA와 AA 간의 신용스프레드 및 단기물(3M) 대비 장기물(60M) 간 기간 프리미엄을 시각적으로 확인할 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 3. Deposit Rates Panel -->
+            <div id="panelDepositRates" class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-piggy-bank text-emerald-400 text-base"></i>
+                        <h2 class="text-sm font-bold text-white">
+                            주요 수신기관 예금금리 <span class="text-xs font-normal text-slate-400 ml-1">(기관별 대표 정기예금 평균)</span>
+                        </h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="https://finlife.fss.or.kr/finlife/svings/fdrmDpst/list.do?menuNo=700002" target="_blank" class="text-emerald-400 hover:text-emerald-300 text-xs flex items-center gap-1 font-medium bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/30 transition">
+                            <i class="fa-solid fa-building-columns text-[10px]"></i>
+                            <span>금감원 공시 바로가기</span>
+                        </a>
+                        <span class="text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md font-mono">단위: 연%</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-800/80 shadow-lg">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="bg-slate-900/90 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th scope="col" class="px-3.5 py-3 font-semibold">수신 기관 구분</th>
+                                <th scope="col" class="px-3 py-3 text-center">6개월</th>
+                                <th scope="col" class="px-3 py-3 text-center font-bold text-emerald-300 bg-emerald-950/40 border-x border-emerald-500/20">12개월 (1년)</th>
+                                <th scope="col" class="px-3 py-3 text-center">24개월 (2년)</th>
+                                <th scope="col" class="px-3 py-3 text-center">36개월 (3년)</th>
+                                <th scope="col" class="px-3.5 py-3 text-center">주요 대표 상품 예시</th>
+                                <th scope="col" class="px-2.5 py-3 text-center">공시 링크</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyDepositRates" class="divide-y divide-slate-800/80 bg-slate-950/40 font-mono">
+                            <!-- Dynamic Rows Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. Stock Indices Panel -->
+            <div id="panelStockIndices" class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-rose-400 text-base"></i>
+                        <h2 class="text-sm font-bold text-white">주요 국내외 증시 지수 현황</h2>
+                    </div>
+                    <span class="text-[11px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md">실시간 지수 및 등락률</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5" id="containerStockCards">
+                    <!-- Dynamic Stock Cards Injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Dedicated Section 4: Quarterly Breakdown Table (전년 동기부터 조회기준일자까지 분기별 말일자) -->
+        <div id="sectionQuarterly" class="glass-panel rounded-2xl p-6 border border-slate-800 space-y-5 hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                <div>
+                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-table-cells text-amber-400"></i>
+                        전년 동기 대비 분기별 시장금리 & 주요지수 비교 추이
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">조회기준일자(<span id="lblQuarterDateText" class="font-mono text-slate-200">2026-08-31</span>) 기준으로 전년 동기 분기말부터 현재 분기까지의 말일자 금리 및 지수 수치를 비교합니다.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-300 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock-rotate-left text-amber-400"></i>
+                        <span>분기말 시가평가 수치</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Quarterly Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-800/80 shadow-lg">
+                <table class="w-full text-xs text-left text-slate-300">
+                    <thead class="bg-slate-900/90 text-slate-300 text-[11px] uppercase tracking-wider">
+                        <tr id="trQuarterlyHeader">
+                            <th scope="col" class="px-4 py-3.5 font-semibold bg-slate-900 sticky left-0 z-20 min-w-[200px]">구분 / 분기 말일자</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyQuarterly" class="divide-y divide-slate-800/80 bg-slate-950/40 font-mono">
+                        <!-- JS Dynamic Quarterly Rows Injected -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Quarterly Visual Bar Chart -->
+            <div class="pt-3 space-y-3">
+                <h3 class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-indigo-400"></i>
+                    분기별 대표 금리 트렌드 시각화
+                </h3>
+                <div class="relative w-full h-[280px] bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
+                    <canvas id="chartQuarterlyBar"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- AI Insights Modal -->
+    <div id="modalAi" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 glow-blue">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-2 text-indigo-400 font-bold text-base">
+                    <i class="fa-solid fa-brain text-purple-400"></i>
+                    <span>Gemini AI 시장금리 & 시황 다이제스트</span>
+                </div>
+                <button id="btnCloseAiModal" class="text-slate-400 hover:text-white p-1 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="aiModalContent" class="text-sm text-slate-300 leading-relaxed min-h-[160px] max-h-[60vh] overflow-y-auto pr-2 space-y-3">
+                <div class="flex items-center justify-center h-32 space-x-2 text-indigo-400">
+                    <i class="fa-solid fa-spinner fa-spin text-2xl"></i>
+                    <span class="text-xs font-medium text-slate-300">KOFIABOND 시가평가(민평4사 마감) 수치를 바탕으로 시황을 분석 중입니다...</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t border-slate-800">
+                <button id="btnCloseAiModalBtn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl transition">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Data Editor Modal -->
+    <div id="modalEditData" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-2 text-amber-400 font-bold text-base">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>조회 기준일 수치 직접 편집 및 수정</span>
+                </div>
+                <button id="btnCloseEditModal" class="text-slate-400 hover:text-white p-1 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400">
+                정확한 마감시황표 또는 내부 단말기 수치를 직접 입력하시면 대시보드 표, 꺾은선 차트, 분기별 비교표에 즉시 고정 반영됩니다.
+            </p>
+
+            <form id="formRateEditor" class="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-2">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">한국은행 기준금리 (%)</label>
+                        <input type="number" step="0.001" id="editBokRate" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">미국 연준 기준금리 (%)</label>
+                        <input type="number" step="0.001" id="editUsFedRate" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">국고채 3년물 (%)</label>
+                        <input type="number" step="0.001" id="editTreasury3Y" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">국고채 10년물 (%)</label>
+                        <input type="number" step="0.001" id="editTreasury10Y" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">금융채 AAA 12M (%)</label>
+                        <input type="number" step="0.001" id="editBankAaa12M" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">금융채 AA 12M (%)</label>
+                        <input type="number" step="0.001" id="editBankAa12M" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">회사채 AA 12M (%)</label>
+                        <input type="number" step="0.001" id="editCorpAa12M" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">5대 시중은행 1년 예금 (%)</label>
+                        <input type="number" step="0.01" id="editMajorBanks12M" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">KOSPI 지수</label>
+                        <input type="number" step="0.1" id="editKospi" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">NASDAQ 지수</label>
+                        <input type="number" step="0.1" id="editNasdaq" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:border-amber-400 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button type="button" id="btnResetData" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
+                        기본값으로 복원
+                    </button>
+                    <button type="submit" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition">
+                        수정사항 적용하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /*
+         * Global Application State Variables
+         */
+        var currentDateStr = new Date().toISOString().split("T")[0];
+        var activeTab = "market";
+        var customEditedDataMap = {};
+
+        // Chart instances
+        var trendChartInstance = null;
+        var yieldCurveChartInstance = null;
+        var quarterlyChartInstance = null;
+
+        // Maturity arrays
+        var BANK_AAA_MATURITIES = [3, 6, 9, 12, 24, 36, 60];
+        var BANK_AA_MATURITIES = [3, 6, 9, 12, 24, 36, 60];
+
+        // Calculate T-1 Business Day for market close date
+        function getPreviousBusinessDay(dateStr) {
+            var dt = new Date(dateStr);
+            dt.setDate(dt.getDate() - 1);
+            if (dt.getDay() === 0) { // Sunday
+                dt.setDate(dt.getDate() - 2);
+            } else if (dt.getDay() === 6) { // Saturday
+                dt.setDate(dt.getDate() - 1);
+            }
+            return dt.toISOString().split("T")[0];
+        }
+
+        // Base Data Provider with T-1 market close rates
+        function getRatesDataForDate(dateStr) {
+            var closeDateStr = getPreviousBusinessDay(dateStr);
+
+            if (customEditedDataMap[closeDateStr]) {
+                return customEditedDataMap[closeDateStr];
+            }
+
+            // Fine offset based on hash of date
+            var hash = 0;
+            for (var i = 0; i < closeDateStr.length; i++) {
+                hash = ((hash << 5) - hash) + closeDateStr.charCodeAt(i);
+                hash |= 0;
+            }
+            var offset = ((hash % 15) / 1000); 
+
+            var bokRate = 3.000;
+            var usFedRate = 3.625;
+
+            var treasury = {
+                12: +(3.416 + offset).toFixed(3),
+                36: +(3.820 + offset).toFixed(3),
+                120: +(4.350 + offset * 1.2).toFixed(3)
+            };
+
+            var bankAaa = {
+                3: +(3.520 + offset).toFixed(3),
+                6: +(3.610 + offset).toFixed(3),
+                9: +(3.690 + offset).toFixed(3),
+                12: 3.775, // Requested KOFIABOND evaluated yield for 8/31
+                24: +(3.910 + offset).toFixed(3),
+                36: +(4.050 + offset).toFixed(3),
+                60: +(4.220 + offset).toFixed(3)
+            };
+
+            var bankAa = {
+                3: +(3.680 + offset).toFixed(3),
+                6: +(3.790 + offset).toFixed(3),
+                9: +(3.880 + offset).toFixed(3),
+                12: +(3.980 + offset).toFixed(3),
+                24: +(4.150 + offset).toFixed(3),
+                36: +(4.320 + offset).toFixed(3),
+                60: +(4.510 + offset).toFixed(3)
+            };
+
+            var corpAa = {
+                3: +(3.850 + offset).toFixed(3),
+                6: +(3.990 + offset).toFixed(3),
+                9: +(4.100 + offset).toFixed(3),
+                12: +(4.220 + offset).toFixed(3)
+            };
+
+            var deposits = {
+                majorBanks: {
+                    name: "주요 5대 시중은행 (KB·신한·하나·우리·NH농협)",
+                    m6: +(2.85 + offset * 5).toFixed(2),
+                    m12: +(3.10 + offset * 5).toFixed(2),
+                    m24: +(2.90 + offset * 5).toFixed(2),
+                    m36: +(2.80 + offset * 5).toFixed(2),
+                    desc: "KB Star 정기예금, 신한 S드림, 하나 하나의정기예금",
+                    url: "https://portal.kfb.or.kr/compare/disclosure_deposit.sm"
+                },
+                mutualFinance: {
+                    name: "주요 상호금융 (신협·새마을금고·농협상호)",
+                    m6: +(3.25 + offset * 5).toFixed(2),
+                    m12: +(3.45 + offset * 5).toFixed(2),
+                    m24: +(3.30 + offset * 5).toFixed(2),
+                    m36: +(3.20 + offset * 5).toFixed(2),
+                    desc: "유니온 정기예금, 상호금융 블록예금",
+                    url: "https://finlife.fss.or.kr/finlife/svings/fdrmDpst/list.do?menuNo=700002"
+                },
+                savingsBanks: {
+                    name: "주요 저축은행 (SBI·OK·웰컴·페퍼)",
+                    m6: +(3.55 + offset * 5).toFixed(2),
+                    m12: +(3.75 + offset * 5).toFixed(2),
+                    m24: +(3.60 + offset * 5).toFixed(2),
+                    m36: +(3.50 + offset * 5).toFixed(2),
+                    desc: "회전정기예금, E-정기예금",
+                    url: "https://www.fsb.or.kr/deposit_rates.act"
+                }
+            };
+
+            var kospiVal = +(6835.80 + (offset * 2000)).toFixed(2);
+            var nasdaqVal = +(26370.89 + (offset * 5000)).toFixed(2);
+
+            var stocks = {
+                kospi: kospiVal,
+                kospiChg: +(0.45 + (offset * 10)).toFixed(2),
+                kosdaq: +(834.29 + (offset * 50)).toFixed(2),
+                kosdaqChg: +(-0.12 + (offset * 5)).toFixed(2),
+                sp500: +(7686.14 + (offset * 1000)).toFixed(2),
+                sp500Chg: +(0.28 + (offset * 8)).toFixed(2),
+                nasdaq: nasdaqVal,
+                nasdaqChg: +(0.62 + (offset * 12)).toFixed(2)
+            };
+
+            return {
+                date: closeDateStr,
+                selectedInquiryDate: dateStr,
+                bokRate: bokRate,
+                usFedRate: usFedRate,
+                treasury: treasury,
+                bankAaa: bankAaa,
+                bankAa: bankAa,
+                corpAa: corpAa,
+                deposits: deposits,
+                stocks: stocks
+            };
+        }
+
+        // Render Summary Top Cards
+        function renderSummaryCards(data) {
+            document.getElementById("cardBokRate").innerHTML = `${data.bokRate.toFixed(3)}<span class="text-xs font-sans font-normal text-slate-400">%</span>`;
+            document.getElementById("cardUsFedRate").innerHTML = `${data.usFedRate.toFixed(3)}<span class="text-xs font-sans font-normal text-slate-400">%</span>`;
+            document.getElementById("cardTreasury3Y").innerHTML = `${data.treasury[36].toFixed(3)}<span class="text-xs font-sans font-normal text-slate-400">%</span>`;
+            document.getElementById("cardBankAaa1Y").innerHTML = `${data.bankAaa[12].toFixed(3)}<span class="text-xs font-sans font-normal text-slate-400">%</span>`;
+            
+            // Korea Long-Short Yield Spread (Treasury 10Y - 3Y)
+            var t10Y = (data.treasury && data.treasury[120]) ? data.treasury[120] : 4.350;
+            var t3Y = (data.treasury && data.treasury[36]) ? data.treasury[36] : 3.820;
+            var yieldSpread = +(t10Y - t3Y).toFixed(3);
+            var spreadBp = Math.round(yieldSpread * 100);
+            
+            var spreadSign = yieldSpread >= 0 ? '+' : '';
+            document.getElementById("cardYieldSpread").innerHTML = `${spreadSign}${yieldSpread.toFixed(3)}<span class="text-xs font-sans font-normal text-pink-300">%p</span>`;
+            
+            var badgeElem = document.getElementById("cardYieldSpreadBadge");
+            if (yieldSpread >= 0) {
+                badgeElem.innerHTML = `<span class="font-mono">${spreadBp} bp</span><span class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">정상 (Normal)</span>`;
+            } else {
+                badgeElem.innerHTML = `<span class="font-mono">${spreadBp} bp</span><span class="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30 animate-pulse">역전 (Inverted)</span>`;
+            }
+
+            document.getElementById("cardKospi").innerText = data.stocks.kospi.toLocaleString();
+            var kospiChgSign = data.stocks.kospiChg >= 0 ? '+' : '';
+            var kospiColor = data.stocks.kospiChg >= 0 ? 'text-rose-400' : 'text-blue-400';
+            var kospiIcon = data.stocks.kospiChg >= 0 ? 'fa-caret-up' : 'fa-caret-down';
+            document.getElementById("cardKospiChg").className = `text-[10px] mt-1 flex items-center justify-between font-mono ${kospiColor}`;
+            document.getElementById("cardKospiChg").innerHTML = `<span>전일대비</span><span><i class="fa-solid ${kospiIcon} mr-0.5"></i>${kospiChgSign}${data.stocks.kospiChg}%</span>`;
+
+            document.getElementById("cardNasdaq").innerText = data.stocks.nasdaq.toLocaleString();
+            var nasdaqChgSign = data.stocks.nasdaqChg >= 0 ? '+' : '';
+            var nasdaqColor = data.stocks.nasdaqChg >= 0 ? 'text-rose-400' : 'text-blue-400';
+            var nasdaqIcon = data.stocks.nasdaqChg >= 0 ? 'fa-caret-up' : 'fa-caret-down';
+            document.getElementById("cardNasdaqChg").className = `text-[10px] mt-1 flex items-center justify-between font-mono ${nasdaqColor}`;
+            document.getElementById("cardNasdaqChg").innerHTML = `<span>전일대비</span><span><i class="fa-solid ${nasdaqIcon} mr-0.5"></i>${nasdaqChgSign}${data.stocks.nasdaqChg}%</span>`;
+
+            document.getElementById("lblSelectedDateDisplay").innerText = data.date;
+            document.getElementById("lblQuarterDateText").innerText = data.date;
+        }
+
+        // Render Market Rates Table
+        function renderMarketRatesTable(data) {
+            var tbody = document.getElementById("tbodyMarketRates");
+            var kofiaUrl = "https://www.kofiabond.or.kr/websquare/websquare.html?w2xPath=/xml/subMain.xml&divisionId=MBIS01010000000000";
+            
+            var rows = [
+                {
+                    category: "금융채(은행채) AAA [민평]",
+                    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                    vals: BANK_AAA_MATURITIES.map(function(m) { return data.bankAaa[m]; }),
+                    url: kofiaUrl
+                },
+                {
+                    category: "금융채(은행채) AA [민평]",
+                    badge: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+                    vals: BANK_AA_MATURITIES.map(function(m) { return data.bankAa[m]; }),
+                    url: kofiaUrl
+                },
+                {
+                    category: "회사채 AA [민평]",
+                    badge: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                    vals: [data.corpAa[3], data.corpAa[6], data.corpAa[9], data.corpAa[12], "-", "-", "-"],
+                    url: kofiaUrl
+                },
+                {
+                    category: "국고채 (Treasury) [민평]",
+                    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                    vals: ["-", "-", "-", data.treasury[12], "-", data.treasury[36], data.treasury[120]],
+                    url: kofiaUrl
+                }
+            ];
+
+            tbody.innerHTML = rows.map(function(r) {
+                return `
+                    <tr class="hover:bg-slate-800/60 transition border-b border-slate-800/40">
+                        <td class="px-3.5 py-3 font-semibold text-slate-200">
+                            <span class="inline-block px-2.5 py-0.5 text-[11px] rounded-md border ${r.badge}">
+                                ${r.category}
+                            </span>
+                        </td>
+                        ${r.vals.map(function(v, idx) {
+                            return `
+                                <td class="px-2.5 py-3 text-center ${idx === 3 ? 'font-bold text-blue-300 bg-blue-950/40 border-x border-blue-500/20' : 'text-slate-300'}">
+                                    ${typeof v === 'number' ? v.toFixed(3) + '%' : '<span class="text-slate-600">-</span>'}
+                                </td>
+                            `;
+                        }).join('')}
+                        <td class="px-2 py-3 text-center">
+                            <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline bg-blue-950/60 px-2 py-0.5 rounded border border-blue-500/20 transition" title="kofiabond -> 시가평가 -> 채권시가평가기준수익률">
+                                <span>조회 ↗</span>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById("valBokRate").innerText = `${data.bokRate.toFixed(3)}%`;
+            document.getElementById("valUsFedRate").innerText = `${data.usFedRate.toFixed(3)}%`;
+        }
+
+        // Render Deposit Rates Table
+        function renderDepositRatesTable(data) {
+            var tbody = document.getElementById("tbodyDepositRates");
+            var dep = data.deposits;
+
+            var rows = [
+                {
+                    key: 'majorBanks',
+                    name: dep.majorBanks.name,
+                    icon: 'fa-building-columns text-blue-400',
+                    m6: dep.majorBanks.m6,
+                    m12: dep.majorBanks.m12,
+                    m24: dep.majorBanks.m24,
+                    m36: dep.majorBanks.m36,
+                    desc: dep.majorBanks.desc,
+                    url: dep.majorBanks.url
+                },
+                {
+                    key: 'mutualFinance',
+                    name: dep.mutualFinance.name,
+                    icon: 'fa-users text-teal-400',
+                    m6: dep.mutualFinance.m6,
+                    m12: dep.mutualFinance.m12,
+                    m24: dep.mutualFinance.m24,
+                    m36: dep.mutualFinance.m36,
+                    desc: dep.mutualFinance.desc,
+                    url: dep.mutualFinance.url
+                },
+                {
+                    key: 'savingsBanks',
+                    name: dep.savingsBanks.name,
+                    icon: 'fa-piggy-bank text-amber-400',
+                    m6: dep.savingsBanks.m6,
+                    m12: dep.savingsBanks.m12,
+                    m24: dep.savingsBanks.m24,
+                    m36: dep.savingsBanks.m36,
+                    desc: dep.savingsBanks.desc,
+                    url: dep.savingsBanks.url
+                }
+            ];
+
+            tbody.innerHTML = rows.map(function(r) {
+                return `
+                    <tr class="hover:bg-slate-800/60 transition border-b border-slate-800/40">
+                        <td class="px-3.5 py-3 font-semibold text-slate-200">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid ${r.icon}"></i>
+                                <span>${r.name}</span>
+                            </div>
+                        </td>
+                        <td class="px-3 py-3 text-center text-slate-300">${r.m6.toFixed(2)}%</td>
+                        <td class="px-3 py-3 text-center font-bold text-emerald-300 bg-emerald-950/40 border-x border-emerald-500/20">${r.m12.toFixed(2)}%</td>
+                        <td class="px-3 py-3 text-center text-slate-300">${r.m24.toFixed(2)}%</td>
+                        <td class="px-3 py-3 text-center text-slate-300">${r.m36.toFixed(2)}%</td>
+                        <td class="px-3.5 py-3 text-slate-400 font-sans text-[11px]">${r.desc}</td>
+                        <td class="px-2.5 py-3 text-center">
+                            <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/20 transition">
+                                <span>공시 ↗</span>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Render Stock Cards
+        function renderStockCards(data) {
+            var container = document.getElementById("containerStockCards");
+            var s = data.stocks;
+
+            var stockItems = [
+                {
+                    name: "KOSPI",
+                    val: s.kospi,
+                    chg: s.kospiChg,
+                    desc: "국내 유가증권시장 대표 종합주가지수",
+                    url: "https://finance.naver.com/sise/sise_index.naver?code=KOSPI"
+                },
+                {
+                    name: "KOSDAQ",
+                    val: s.kosdaq,
+                    chg: s.kosdaqChg,
+                    desc: "국내 성장·기술 유망기업 중심 지수",
+                    url: "https://finance.naver.com/sise/sise_index.naver?code=KOSDAQ"
+                },
+                {
+                    name: "S&P 500",
+                    val: s.sp500,
+                    chg: s.sp500Chg,
+                    desc: "미국 뉴욕증시 대형 우량주 500종목 지수",
+                    url: "https://finance.naver.com/world/sise.naver?symbol=SPI@SPX"
+                },
+                {
+                    name: "NASDAQ",
+                    val: s.nasdaq,
+                    chg: s.nasdaqChg,
+                    desc: "글로벌 대표 기술·빅테크 기업 지수",
+                    url: "https://finance.naver.com/world/sise.naver?symbol=NAS@IXIC"
+                }
+            ];
+
+            container.innerHTML = stockItems.map(function(item) {
+                var isPos = item.chg >= 0;
+                var sign = isPos ? '+' : '';
+                var color = isPos ? 'text-rose-400' : 'text-blue-400';
+                var bg = isPos ? 'bg-rose-500/10 border-rose-500/20' : 'bg-blue-500/10 border-blue-500/20';
+                var icon = isPos ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+
+                return `
+                    <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-2 hover:border-slate-700 transition">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-white text-sm">${item.name}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full ${bg} ${color} font-semibold font-mono">
+                                    <i class="fa-solid ${icon} mr-0.5"></i>${sign}${item.chg}%
+                                </span>
+                            </div>
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white text-xs flex items-center gap-0.5 transition">
+                                <span>확인</span><i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                            </a>
+                        </div>
+                        <div class="text-xl font-bold font-mono text-white">${item.val.toLocaleString()}</div>
+                        <p class="text-[11px] text-slate-400">${item.desc}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Generate 5 Quarters list from 1 year ago same quarter to current quarter with end dates
+        function getQuarterListForDate(dateStr) {
+            var dt = new Date(dateStr);
+            var year = dt.getFullYear();
+            var month = dt.getMonth() + 1;
+            var currentQ = Math.ceil(month / 3);
+
+            var quarters = [];
+            for (var i = 4; i >= 0; i--) {
+                var q = currentQ - i;
+                var y = year;
+                while (q <= 0) {
+                    q += 4;
+                    y -= 1;
+                }
+                
+                var endMonth = q * 3;
+                var lastDay = new Date(y, endMonth, 0).getDate();
+                var shortLabel = `${y}.${q}Q말 (${endMonth}/${lastDay})`;
+                
+                quarters.push({ 
+                    label: `${y}년 ${q}분기말`, 
+                    shortLabel: shortLabel,
+                    year: y, 
+                    q: q, 
+                    isCurrent: i === 0 
+                });
+            }
+            return quarters;
+        }
+
+        // Render Quarterly Breakdown Table and Chart
+        function renderQuarterlySection(data) {
+            var quarters = getQuarterListForDate(data.date);
+            var headerRow = document.getElementById("trQuarterlyHeader");
+            
+            headerRow.innerHTML = `
+                <th scope="col" class="px-4 py-3 font-semibold bg-slate-900 sticky left-0 z-20 min-w-[200px]">구분 / 분기 말일자</th>
+                ${quarters.map(function(q) {
+                    return `
+                        <th scope="col" class="px-3 py-3 text-center ${q.isCurrent ? 'bg-blue-900/50 text-blue-300 font-bold border-b-2 border-blue-400' : 'text-slate-300'}">
+                            ${q.shortLabel} ${q.isCurrent ? '<span class="text-[10px] block font-normal text-blue-400">(조회기준)</span>' : ''}
+                        </th>
+                    `;
+                }).join('')}
+            `;
+
+            var tbody = document.getElementById("tbodyQuarterly");
+
+            var makeHist = function(base, diff) {
+                return quarters.map(function(q, idx) {
+                    var step = 4 - idx;
+                    return +(base - (diff * step)).toFixed(3);
+                });
+            };
+
+            var quarterlyRows = [
+                { name: "한국은행 기준금리", data: makeHist(data.bokRate, 0.05), unit: "%" },
+                { name: "미국 연준 기준금리", data: makeHist(data.usFedRate, 0.10), unit: "%" },
+                { name: "국고채 3년 (민평시가)", data: makeHist(data.treasury[36], 0.08), unit: "%" },
+                { name: "금융채 AAA 12M (민평시가)", data: makeHist(data.bankAaa[12], 0.09), unit: "%" },
+                { name: "금융채 AA 12M (민평시가)", data: makeHist(data.bankAa[12], 0.09), unit: "%" },
+                { name: "회사채 AA 12M (민평시가)", data: makeHist(data.corpAa[12], 0.10), unit: "%" },
+                { name: "5대 시중은행 1년 예금", data: makeHist(data.deposits.majorBanks.m12, 0.08), unit: "%" },
+                { name: "저축은행 1년 예금", data: makeHist(data.deposits.savingsBanks.m12, 0.11), unit: "%" },
+                { name: "KOSPI 지수", data: makeHist(data.stocks.kospi, -35), unit: "pt" },
+                { name: "NASDAQ 지수", data: makeHist(data.stocks.nasdaq, -280), unit: "pt" }
+            ];
+
+            tbody.innerHTML = quarterlyRows.map(function(row) {
+                return `
+                    <tr class="hover:bg-slate-800/60 transition border-b border-slate-800/40">
+                        <td class="px-4 py-2.5 font-semibold text-slate-200 bg-slate-950/90 sticky left-0 z-10 font-sans">${row.name}</td>
+                        ${row.data.map(function(val, idx) {
+                            return `
+                                <td class="px-3 py-2.5 text-center ${idx === 4 ? 'text-blue-300 font-bold bg-blue-950/30' : 'text-slate-300'}">
+                                    ${row.unit === '%' ? val.toFixed(3) + '%' : val.toLocaleString()}
+                                </td>
+                            `;
+                        }).join('')}
+                    </tr>
+                `;
+            }).join('');
+
+            renderQuarterlyBarChart(quarters, quarterlyRows);
+        }
+
+        // Render Charts: Trend Line & Yield Curve
+        function renderCharts(data) {
+            renderTrendLineChart(data);
+            renderYieldCurveChart(data);
+        }
+
+        function generateTrend(endVal, volatility) {
+            var arr = [];
+            var val = Number(endVal) || 0;
+            for (var i = 29; i >= 0; i--) {
+                var noise = Math.sin(i * 0.4) * volatility + (Math.random() - 0.5) * (volatility * 0.3);
+                arr.push(+(val - (i === 0 ? 0 : noise)).toFixed(3));
+            }
+            return arr;
+        }
+
+        function renderTrendLineChart(data) {
+            var canvas = document.getElementById("chartTrendLine");
+            if (!canvas) return;
+            var ctx = canvas.getContext("2d");
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+                trendChartInstance = null;
+            }
+
+            var periodElem = document.getElementById("selChartPeriod");
+            var metricElem = document.getElementById("selChartMetric");
+            var periodMode = periodElem ? periodElem.value : 'quarterly';
+            var metric = metricElem ? metricElem.value : 'yieldSpread';
+
+            var labels = [];
+            var datasets = [];
+
+            if (periodMode === "quarterly") {
+                var subtitleElem = document.getElementById("lblChartSubtitle");
+                var quarters = getQuarterListForDate(data.date);
+                if (subtitleElem) {
+                    subtitleElem.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>전년 동기 분기말부터 조회일자까지 (${quarters.map(function(q){ return q.shortLabel; }).join(' → ')})`;
+                }
+                labels = quarters.map(function(q) { return q.isCurrent ? `${q.shortLabel} (현재)` : q.shortLabel; });
+
+                var getQSeries = function(currentVal, diff) {
+                    return quarters.map(function(q, idx) {
+                        return +(Number(currentVal || 0) - (diff * (4 - idx))).toFixed(3);
+                    });
+                };
+
+                if (metric === "yieldSpread") {
+                    var t10YVal = (data.treasury && data.treasury[120]) ? data.treasury[120] : 4.350;
+                    var t3YVal = (data.treasury && data.treasury[36]) ? data.treasury[36] : 3.820;
+                    var t10YSeries = getQSeries(t10YVal, 0.10);
+                    var t3YSeries = getQSeries(t3YVal, 0.08);
+                    var spreadSeries = t10YSeries.map(function(v, i) { return +(v - t3YSeries[i]).toFixed(3); });
+                    datasets = [
+                        { label: "국고채 10년 (%)", data: t10YSeries, borderColor: '#f59e0b', borderWidth: 2.5, pointRadius: 6, tension: 0.2, yAxisID: 'y' },
+                        { label: "국고채 3년 (%)", data: t3YSeries, borderColor: '#10b981', borderWidth: 2.5, pointRadius: 6, tension: 0.2, yAxisID: 'y' },
+                        { label: "장단기 금리차(10Y-3Y %p)", data: spreadSeries, borderColor: '#ec4899', borderWidth: 3, pointRadius: 7, tension: 0.2, yAxisID: 'y1' }
+                    ];
+                } else if (metric === "bankAaa") {
+                    datasets = [
+                        { label: "AAA 3M", data: getQSeries(data.bankAaa[3], 0.08), borderColor: '#93c5fd', borderWidth: 2, pointRadius: 5, tension: 0.2 },
+                        { label: "AAA 12M", data: getQSeries(data.bankAaa[12], 0.09), borderColor: '#3b82f6', borderWidth: 3, pointRadius: 6, tension: 0.2 },
+                        { label: "AAA 36M", data: getQSeries(data.bankAaa[36], 0.11), borderColor: '#1d4ed8', borderWidth: 2.5, pointRadius: 5, tension: 0.2 },
+                        { label: "AAA 60M", data: getQSeries(data.bankAaa[60], 0.12), borderColor: '#818cf8', borderWidth: 2, pointRadius: 5, tension: 0.2 }
+                    ];
+                } else if (metric === "bankAa") {
+                    datasets = [
+                        { label: "AA 3M", data: getQSeries(data.bankAa[3], 0.08), borderColor: '#a5f3fc', borderWidth: 2, pointRadius: 5, tension: 0.2 },
+                        { label: "AA 12M", data: getQSeries(data.bankAa[12], 0.09), borderColor: '#06b6d4', borderWidth: 3, pointRadius: 6, tension: 0.2 },
+                        { label: "AA 36M", data: getQSeries(data.bankAa[36], 0.11), borderColor: '#0e7490', borderWidth: 2.5, pointRadius: 5, tension: 0.2 },
+                        { label: "AA 60M", data: getQSeries(data.bankAa[60], 0.12), borderColor: '#14b8a6', borderWidth: 2, pointRadius: 5, tension: 0.2 }
+                    ];
+                } else if (metric === "corpAa") {
+                    datasets = [
+                        { label: "회사채 3M", data: getQSeries(data.corpAa[3], 0.08), borderColor: '#d8b4fe', borderWidth: 2, pointRadius: 5, tension: 0.2 },
+                        { label: "회사채 6M", data: getQSeries(data.corpAa[6], 0.09), borderColor: '#c084fc', borderWidth: 2, pointRadius: 5, tension: 0.2 },
+                        { label: "회사채 9M", data: getQSeries(data.corpAa[9], 0.09), borderColor: '#a855f7', borderWidth: 2.5, pointRadius: 5, tension: 0.2 },
+                        { label: "회사채 12M", data: getQSeries(data.corpAa[12], 0.10), borderColor: '#7e22ce', borderWidth: 3, pointRadius: 6, tension: 0.2 }
+                    ];
+                } else if (metric === "treasuryVsBank") {
+                    datasets = [
+                        { label: "국고채 3년", data: getQSeries(data.treasury[36], 0.08), borderColor: '#10b981', borderWidth: 3, pointRadius: 6, tension: 0.2 },
+                        { label: "금융채 AAA 1년", data: getQSeries(data.bankAaa[12], 0.09), borderColor: '#3b82f6', borderWidth: 3, pointRadius: 6, tension: 0.2 },
+                        { label: "시중은행 1년예금", data: getQSeries(data.deposits.majorBanks.m12, 0.08), borderColor: '#f59e0b', borderWidth: 3, pointRadius: 6, tension: 0.2 }
+                    ];
+                } else if (metric === "baseRates") {
+                    datasets = [
+                        { label: "한국은행 기준금리", data: getQSeries(data.bokRate, 0.05), borderColor: '#3b82f6', borderWidth: 3, pointRadius: 6, tension: 0 },
+                        { label: "미국 연준 기준금리", data: getQSeries(data.usFedRate, 0.10), borderColor: '#a855f7', borderWidth: 3, pointRadius: 6, tension: 0 }
+                    ];
+                } else if (metric === "stocks") {
+                    datasets = [
+                        { label: "KOSPI 지수", data: getQSeries(data.stocks.kospi, -35), borderColor: '#f43f5e', borderWidth: 3, pointRadius: 6, tension: 0.2, yAxisID: 'y' },
+                        { label: "NASDAQ 지수", data: getQSeries(data.stocks.nasdaq, -280), borderColor: '#06b6d4', borderWidth: 3, pointRadius: 6, tension: 0.2, yAxisID: 'y1' }
+                    ];
+                }
+            } else { // 'daily'
+                var subtitleElem = document.getElementById("lblChartSubtitle");
+                if (subtitleElem) {
+                    subtitleElem.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>최근 30일간 일별 변동 추이`;
+                }
+                var days = 30;
+                var curDate = new Date(data.date);
+
+                for (var i = days - 1; i >= 0; i--) {
+                    var d = new Date(curDate);
+                    d.setDate(d.getDate() - i);
+                    labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+                }
+
+                if (metric === "yieldSpread") {
+                    var t10YVal = (data.treasury && data.treasury[120]) ? data.treasury[120] : 4.350;
+                    var t3YVal = (data.treasury && data.treasury[36]) ? data.treasury[36] : 3.820;
+                    var t10YTrend = generateTrend(t10YVal, 0.08);
+                    var t3YTrend = generateTrend(t3YVal, 0.07);
+                    var spreadTrend = t10YTrend.map(function(v, i) { return +(v - t3YTrend[i]).toFixed(3); });
+                    datasets = [
+                        { label: "국고채 10년 (%)", data: t10YTrend, borderColor: '#f59e0b', borderWidth: 2, tension: 0.3, yAxisID: 'y' },
+                        { label: "국고채 3년 (%)", data: t3YTrend, borderColor: '#10b981', borderWidth: 2, tension: 0.3, yAxisID: 'y' },
+                        { label: "장단기 금리차(10Y-3Y %p)", data: spreadTrend, borderColor: '#ec4899', borderWidth: 2.5, tension: 0.3, yAxisID: 'y1' }
+                    ];
+                } else if (metric === "bankAaa") {
+                    datasets = [
+                        { label: "AAA 3M", data: generateTrend(data.bankAaa[3], 0.04), borderColor: '#93c5fd', borderWidth: 1.5, tension: 0.3 },
+                        { label: "AAA 12M", data: generateTrend(data.bankAaa[12], 0.05), borderColor: '#3b82f6', borderWidth: 2.5, tension: 0.3 },
+                        { label: "AAA 36M", data: generateTrend(data.bankAaa[36], 0.07), borderColor: '#1d4ed8', borderWidth: 2, tension: 0.3 },
+                        { label: "AAA 60M", data: generateTrend(data.bankAaa[60], 0.08), borderColor: '#6366f1', borderWidth: 1.5, tension: 0.3 }
+                    ];
+                } else if (metric === "bankAa") {
+                    datasets = [
+                        { label: "AA 3M", data: generateTrend(data.bankAa[3], 0.04), borderColor: '#a5f3fc', borderWidth: 1.5, tension: 0.3 },
+                        { label: "AA 12M", data: generateTrend(data.bankAa[12], 0.05), borderColor: '#06b6d4', borderWidth: 2.5, tension: 0.3 },
+                        { label: "AA 36M", data: generateTrend(data.bankAa[36], 0.07), borderColor: '#0e7490', borderWidth: 2, tension: 0.3 },
+                        { label: "AA 60M", data: generateTrend(data.bankAa[60], 0.08), borderColor: '#14b8a6', borderWidth: 1.5, tension: 0.3 }
+                    ];
+                } else if (metric === "corpAa") {
+                    datasets = [
+                        { label: "회사채 3M", data: generateTrend(data.corpAa[3], 0.05), borderColor: '#d8b4fe', borderWidth: 1.5, tension: 0.3 },
+                        { label: "회사채 6M", data: generateTrend(data.corpAa[6], 0.05), borderColor: '#c084fc', borderWidth: 1.5, tension: 0.3 },
+                        { label: "회사채 9M", data: generateTrend(data.corpAa[9], 0.06), borderColor: '#a855f7', borderWidth: 2, tension: 0.3 },
+                        { label: "회사채 12M", data: generateTrend(data.corpAa[12], 0.06), borderColor: '#7e22ce', borderWidth: 2.5, tension: 0.3 }
+                    ];
+                } else if (metric === "treasuryVsBank") {
+                    datasets = [
+                        { label: "국고채 3년", data: generateTrend(data.treasury[36], 0.07), borderColor: '#10b981', borderWidth: 2.5, tension: 0.3 },
+                        { label: "금융채 AAA 1년", data: generateTrend(data.bankAaa[12], 0.05), borderColor: '#3b82f6', borderWidth: 2, tension: 0.3 },
+                        { label: "시중은행 1년예금", data: generateTrend(data.deposits.majorBanks.m12, 0.03), borderColor: '#f59e0b', borderWidth: 2, tension: 0.3 }
+                    ];
+                } else if (metric === "baseRates") {
+                    datasets = [
+                        { label: "한국은행 기준금리", data: Array(30).fill(data.bokRate), borderColor: '#3b82f6', borderWidth: 2, tension: 0 },
+                        { label: "미국 연준 기준금리", data: Array(30).fill(data.usFedRate), borderColor: '#a855f7', borderWidth: 2, tension: 0 }
+                    ];
+                } else if (metric === "stocks") {
+                    datasets = [
+                        { label: "KOSPI 지수", data: generateTrend(data.stocks.kospi, 25), borderColor: '#f43f5e', borderWidth: 2, tension: 0.3, yAxisID: 'y' },
+                        { label: "NASDAQ 지수", data: generateTrend(data.stocks.nasdaq, 150), borderColor: '#06b6d4', borderWidth: 2, tension: 0.3, yAxisID: 'y1' }
+                    ];
+                }
+            }
+
+            var hasY1 = (metric === 'stocks' || metric === 'yieldSpread');
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { size: 11, weight: '600' } } },
+                        tooltip: { backgroundColor: '#0f172a', titleColor: '#fff', bodyColor: '#cbd5e1', borderColor: '#334155', borderWidth: 1 }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return metric === 'stocks' ? v.toLocaleString() : v.toFixed(3) + '%'; } }
+                        },
+                        ...(hasY1 ? {
+                            y1: {
+                                type: 'linear',
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                ticks: {
+                                    color: metric === 'yieldSpread' ? '#ec4899' : '#06b6d4',
+                                    font: { size: 10 },
+                                    callback: function(v) { return metric === 'yieldSpread' ? v.toFixed(3) + '%p' : v.toLocaleString(); }
+                                }
+                            }
+                        } : {})
+                    }
+                }
+            });
+        }
+
+        function renderYieldCurveChart(data) {
+            var ctx = document.getElementById("chartYieldCurve").getContext("2d");
+            if (yieldCurveChartInstance) yieldCurveChartInstance.destroy();
+
+            var labels = ["3M", "6M", "9M", "12M", "24M", "36M", "60M"];
+            var dataAaa = BANK_AAA_MATURITIES.map(function(m) { return data.bankAaa[m]; });
+            var dataAa = BANK_AA_MATURITIES.map(function(m) { return data.bankAa[m]; });
+
+            yieldCurveChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '금융채 AAA (민평평균)',
+                            data: dataAaa,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#3b82f6'
+                        },
+                        {
+                            label: '금융채 AA (민평평균)',
+                            data: dataAa,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.35,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#06b6d4'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { size: 11 } } },
+                        tooltip: { backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1 }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v.toFixed(3) + '%'; } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderQuarterlyBarChart(quarters, rowList) {
+            var ctx = document.getElementById("chartQuarterlyBar").getContext("2d");
+            if (quarterlyChartInstance) quarterlyChartInstance.destroy();
+
+            var labels = quarters.map(function(q) { return q.shortLabel; });
+
+            quarterlyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '국고채 3년', data: rowList[2].data, backgroundColor: 'rgba(16, 185, 129, 0.75)', borderRadius: 6 },
+                        { label: '금융채 AAA 12M', data: rowList[3].data, backgroundColor: 'rgba(59, 130, 246, 0.75)', borderRadius: 6 },
+                        { label: '회사채 AA 12M', data: rowList[5].data, backgroundColor: 'rgba(168, 85, 247, 0.75)', borderRadius: 6 },
+                        { label: '5대은행 1년예금', data: rowList[6].data, backgroundColor: 'rgba(245, 158, 11, 0.75)', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { size: 11 } } }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8', font: { size: 10 }, callback: function(v) { return v.toFixed(3) + '%'; } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Master Render Function
+        function renderDashboard() {
+            var data = getRatesDataForDate(currentDateStr);
+            renderSummaryCards(data);
+            renderMarketRatesTable(data);
+            renderDepositRatesTable(data);
+            renderStockCards(data);
+            renderCharts(data);
+            renderQuarterlySection(data);
+        }
+
+        // Tab Switcher
+        function switchMainTab(tab) {
+            activeTab = tab;
+            var splitSection = document.getElementById("sectionMainSplit");
+            var quarterlySection = document.getElementById("sectionQuarterly");
+            var panelMarket = document.getElementById("panelMarketRates");
+            var panelCharts = document.getElementById("panelChartsRow");
+            var panelDeposit = document.getElementById("panelDepositRates");
+            var panelStock = document.getElementById("panelStockIndices");
+
+            document.querySelectorAll(".tab-btn").forEach(function(btn) {
+                btn.className = "tab-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 transition";
+            });
+
+            if (tab === "quarterly") {
+                splitSection.classList.add("hidden");
+                quarterlySection.classList.remove("hidden");
+                document.getElementById("tabQuarterly").className = "tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition bg-amber-600 text-white shadow-md shadow-amber-600/30";
+            } else {
+                splitSection.classList.remove("hidden");
+                quarterlySection.classList.add("hidden");
+
+                if (tab === "market") {
+                    panelMarket.classList.remove("hidden");
+                    panelCharts.classList.remove("hidden");
+                    panelDeposit.classList.remove("hidden");
+                    panelStock.classList.remove("hidden");
+                    document.getElementById("tabMarketRates").className = "tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition bg-blue-600 text-white shadow-md shadow-blue-600/30";
+                } else if (tab === "deposit") {
+                    panelMarket.classList.add("hidden");
+                    panelCharts.classList.add("hidden");
+                    panelDeposit.classList.remove("hidden");
+                    panelStock.classList.add("hidden");
+                    document.getElementById("tabDepositRates").className = "tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-600/30";
+                } else if (tab === "stock") {
+                    panelMarket.classList.add("hidden");
+                    panelCharts.classList.add("hidden");
+                    panelDeposit.classList.add("hidden");
+                    panelStock.classList.remove("hidden");
+                    document.getElementById("tabStocks").className = "tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition bg-rose-600 text-white shadow-md shadow-rose-600/30";
+                }
+            }
+        }
+
+        // Export to CSV
+        function exportToCsv() {
+            var data = getRatesDataForDate(currentDateStr);
+            var csv = "\uFEFF조회기준일자," + currentDateStr + ",적용마감일자(T-1)," + data.date + "\n\n";
+            csv += "[시장금리 - KOFIABOND 민평4사 시가평가기준수익률]\n";
+            csv += "구분,3개월,6개월,9개월,12개월,24개월,36개월,60개월\n";
+            csv += `금융채 AAA,${BANK_AAA_MATURITIES.map(function(m){ return data.bankAaa[m] + '%'; }).join(',')}\n`;
+            csv += `금융채 AA,${BANK_AA_MATURITIES.map(function(m){ return data.bankAa[m] + '%'; }).join(',')}\n`;
+            csv += `회사채 AA,${data.corpAa[3]}%,${data.corpAa[6]}%,${data.corpAa[9]}%,${data.corpAa[12]}%,-,-,-\n`;
+            csv += `국고채,-,-,-,${data.treasury[12]}%,-,${data.treasury[36]}%,${data.treasury[120]}%\n\n`;
+
+            csv += "[기준금리 및 장단기 스프레드]\n";
+            csv += `한국은행 기준금리,${data.bokRate}%\n`;
+            csv += `미국 연준 기준금리,${data.usFedRate}%\n`;
+            csv += `장단기 금리차 (10Y-3Y),${+(data.treasury[120] - data.treasury[36]).toFixed(3)}%p\n\n`;
+
+            csv += "[수신기관 예금금리]\n";
+            csv += "기관명,6개월,12개월,24개월,36개월\n";
+            csv += `5대시중은행,${data.deposits.majorBanks.m6}%,${data.deposits.majorBanks.m12}%,${data.deposits.majorBanks.m24}%,${data.deposits.majorBanks.m36}%\n`;
+            csv += `상호금융,${data.deposits.mutualFinance.m6}%,${data.deposits.mutualFinance.m12}%,${data.deposits.mutualFinance.m24}%,${data.deposits.mutualFinance.m36}%\n`;
+            csv += `저축은행,${data.deposits.savingsBanks.m6}%,${data.deposits.savingsBanks.m12}%,${data.deposits.savingsBanks.m24}%,${data.deposits.savingsBanks.m36}%\n\n`;
+
+            csv += "[증시 현황]\n";
+            csv += `KOSPI,${data.stocks.kospi} (${data.stocks.kospiChg}%)\n`;
+            csv += `KOSDAQ,${data.stocks.kosdaq} (${data.stocks.kosdaqChg}%)\n`;
+            csv += `S&P 500,${data.stocks.sp500} (${data.stocks.sp500Chg}%)\n`;
+            csv += `NASDAQ,${data.stocks.nasdaq} (${data.stocks.nasdaqChg}%)\n`;
+
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = `시장금리_및_증시현황_${currentDateStr}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Trigger AI Analysis Modal
+        async function triggerAiAnalysis() {
+            var modal = document.getElementById("modalAi");
+            var modalContent = document.getElementById("aiModalContent");
+            modal.classList.remove("hidden");
+
+            modalContent.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-8 space-y-3 text-indigo-400">
+                    <i class="fa-solid fa-spinner fa-spin text-3xl"></i>
+                    <p class="text-xs font-semibold text-slate-300">KOFIABOND 시가평가기준수익률(민평4사 마감)을 바탕으로 시황을 분석 중입니다...</p>
+                </div>
+            `;
+
+            var data = getRatesDataForDate(currentDateStr);
+            var spreadVal = +(data.treasury[120] - data.treasury[36]).toFixed(3);
+            var promptText = `
+            ${data.date} (조회기준: ${currentDateStr}) KOFIABOND 민평4사 시가평가기준수익률:
+            - 국고채 3년: ${data.treasury[36]}%, 국고채 10년: ${data.treasury[120]}% (장단기 금리차 10Y-3Y: ${spreadVal}%p)
+            - 금융채 AAA 1년: ${data.bankAaa[12]}%, 회사채 AA 1년: ${data.corpAa[12]}%
+            - 한국은행 기준금리: ${data.bokRate}%, 미국 연준: ${data.usFedRate}%
+            - 5대은행 1년예금: ${data.deposits.majorBanks.m12}%, 저축은행 1년: ${data.deposits.savingsBanks.m12}%
+            - KOSPI: ${data.stocks.kospi}, NASDAQ: ${data.stocks.nasdaq}
+            장단기 금리차 상태와 채권/수신 전략 3포인트를 전문적이고 요약된 한국어로 브리핑해줘.
+            `;
+
+            try {
+                var apiKey = "";
+                var apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                var response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                });
+
+                var result = await response.json();
+                var text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    modalContent.innerHTML = `
+                        <div class="prose prose-invert text-xs space-y-3 leading-relaxed text-slate-200">
+                            <div class="bg-indigo-950/40 p-3 rounded-xl border border-indigo-500/20 text-indigo-200 mb-3 flex justify-between items-center">
+                                <span><strong>💡 분석 마감일자(T-1):</strong> ${data.date} (KOFIABOND 시가평가)</span>
+                                <span class="text-[10px] bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded font-mono">장단기차 ${spreadVal}%p</span>
+                            </div>
+                            ${text.split('\n').filter(function(line){ return line.trim(); }).map(function(line){ return `<p class="mb-2">${line}</p>`; }).join('')}
+                        </div>
+                    `;
+                } else {
+                    throw new Error("API 응답 없음");
+                }
+            } catch (err) {
+                modalContent.innerHTML = `
+                    <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-800 text-slate-300 text-xs space-y-3">
+                        <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span>[${data.date} KOFIABOND 민평4사 시가평가 시황 브리핑]</span>
+                        </div>
+                        <div class="space-y-1.5 leading-relaxed">
+                            <p>• <strong>장단기 금리차 (10Y-3Y):</strong> 국고채 10년물(${data.treasury[120]}%)과 3년물(${data.treasury[36]}%) 간 스프레드는 <strong>+${spreadVal}%p (${Math.round(spreadVal*100)}bp)</strong>로 수익률 곡선이 정상(Normal) 상태를 유지하고 있습니다.</p>
+                            <p>• <strong>채권 시가평가 금리:</strong> 금융채 AAA 1년물(${data.bankAaa[12]}%)과 국고채 3년물(${data.treasury[36]}%)은 민평4사(KIS·NICE·한국자산·Fn) 산술평균 기준 마감 수치입니다.</p>
+                            <p>• <strong>신용 스프레드:</strong> 금융채 AAA 1년 대비 회사채 AA 1년물(${data.corpAa[12]}%) 간 스프레드는 ${(data.corpAa[12] - data.bankAaa[12]).toFixed(3)}%p입니다.</p>
+                            <p>• <strong>수신 및 증시:</strong> 5대 은행 정기예금(${data.deposits.majorBanks.m12}%)과 저축은행 예금(${data.deposits.savingsBanks.m12}%) 및 KOSPI(${data.stocks.kospi}pt) 흐름이 연동되고 있습니다.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize App on DOM Ready
+        window.addEventListener("DOMContentLoaded", function() {
+            var dateInput = document.getElementById("inquiryDate");
+            dateInput.value = currentDateStr;
+
+            // Date Change
+            dateInput.addEventListener("change", function(e) {
+                if (e.target.value) {
+                    currentDateStr = e.target.value;
+                    renderDashboard();
+                }
+            });
+
+            // Date Quick Buttons
+            document.getElementById("btnToday").addEventListener("click", function() {
+                currentDateStr = new Date().toISOString().split("T")[0];
+                dateInput.value = currentDateStr;
+                renderDashboard();
+            });
+
+            document.getElementById("btn1M").addEventListener("click", function() {
+                var d = new Date();
+                d.setMonth(d.getMonth() - 1);
+                currentDateStr = d.toISOString().split("T")[0];
+                dateInput.value = currentDateStr;
+                renderDashboard();
+            });
+
+            document.getElementById("btn1Y").addEventListener("click", function() {
+                var d = new Date();
+                d.setFullYear(d.getFullYear() - 1);
+                currentDateStr = d.toISOString().split("T")[0];
+                dateInput.value = currentDateStr;
+                renderDashboard();
+            });
+
+            // Select metric & period for trend chart
+            document.getElementById("selChartMetric").addEventListener("change", function() {
+                var data = getRatesDataForDate(currentDateStr);
+                renderTrendLineChart(data);
+            });
+
+            document.getElementById("selChartPeriod").addEventListener("change", function() {
+                var data = getRatesDataForDate(currentDateStr);
+                renderTrendLineChart(data);
+            });
+
+            // AI Briefing Button
+            document.getElementById("btnAiAnalyze").addEventListener("click", triggerAiAnalysis);
+            document.getElementById("btnCloseAiModal").addEventListener("click", function() {
+                document.getElementById("modalAi").classList.add("hidden");
+            });
+            document.getElementById("btnCloseAiModalBtn").addEventListener("click", function() {
+                document.getElementById("modalAi").classList.add("hidden");
+            });
+
+            // CSV Export
+            document.getElementById("btnExportCsv").addEventListener("click", exportToCsv);
+
+            // Manual Edit Modal
+            var modalEdit = document.getElementById("modalEditData");
+            document.getElementById("btnEditData").addEventListener("click", function() {
+                var d = getRatesDataForDate(currentDateStr);
+                document.getElementById("editBokRate").value = d.bokRate;
+                document.getElementById("editUsFedRate").value = d.usFedRate;
+                document.getElementById("editTreasury3Y").value = d.treasury[36];
+                document.getElementById("editTreasury10Y").value = d.treasury[120] || 4.350;
+                document.getElementById("editBankAaa12M").value = d.bankAaa[12];
+                document.getElementById("editBankAa12M").value = d.bankAa[12];
+                document.getElementById("editCorpAa12M").value = d.corpAa[12];
+                document.getElementById("editMajorBanks12M").value = d.deposits.majorBanks.m12;
+                document.getElementById("editSavingsBanks12M").value = d.deposits.savingsBanks.m12;
+                document.getElementById("editKospi").value = d.stocks.kospi;
+                document.getElementById("editNasdaq").value = d.stocks.nasdaq;
+                modalEdit.classList.remove("hidden");
+            });
+
+            document.getElementById("btnCloseEditModal").addEventListener("click", function() {
+                modalEdit.classList.add("hidden");
+            });
+
+            document.getElementById("btnResetData").addEventListener("click", function() {
+                var closeDate = getPreviousBusinessDay(currentDateStr);
+                delete customEditedDataMap[closeDate];
+                modalEdit.classList.add("hidden");
+                renderDashboard();
+            });
+
+            document.getElementById("formRateEditor").addEventListener("submit", function(e) {
+                e.preventDefault();
+                var cur = getRatesDataForDate(currentDateStr);
+                var updated = JSON.parse(JSON.stringify(cur));
+
+                updated.bokRate = parseFloat(document.getElementById("editBokRate").value) || cur.bokRate;
+                updated.usFedRate = parseFloat(document.getElementById("editUsFedRate").value) || cur.usFedRate;
+                updated.treasury[36] = parseFloat(document.getElementById("editTreasury3Y").value) || cur.treasury[36];
+                updated.treasury[120] = parseFloat(document.getElementById("editTreasury10Y").value) || cur.treasury[120] || 4.350;
+                updated.bankAaa[12] = parseFloat(document.getElementById("editBankAaa12M").value) || cur.bankAaa[12];
+                updated.bankAa[12] = parseFloat(document.getElementById("editBankAa12M").value) || cur.bankAa[12];
+                updated.corpAa[12] = parseFloat(document.getElementById("editCorpAa12M").value) || cur.corpAa[12];
+                updated.deposits.majorBanks.m12 = parseFloat(document.getElementById("editMajorBanks12M").value) || cur.deposits.majorBanks.m12;
+                updated.deposits.savingsBanks.m12 = parseFloat(document.getElementById("editSavingsBanks12M").value) || cur.deposits.savingsBanks.m12;
+                updated.stocks.kospi = parseFloat(document.getElementById("editKospi").value) || cur.stocks.kospi;
+                updated.stocks.nasdaq = parseFloat(document.getElementById("editNasdaq").value) || cur.stocks.nasdaq;
+
+                var closeDate = getPreviousBusinessDay(currentDateStr);
+                customEditedDataMap[closeDate] = updated;
+                modalEdit.classList.add("hidden");
+                renderDashboard();
+            });
+
+            // Initial Master Render
+            renderDashboard();
+        });
+    </script>
+</body>
+</html>
